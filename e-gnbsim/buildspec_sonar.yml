@@ -1,0 +1,61 @@
+version: 0.2
+
+phases: 
+    install:
+
+        commands:
+        
+            - repo=$(pwd)
+            
+            
+            - export PATH=/usr/bin:$PATH
+            
+            
+            
+            - echo "installing something"
+            - cat /etc/os-release
+            - apt-get update
+            - apt-get -y install sudo
+            - sudo apt-get update
+            - sudo apt-get install -y jq
+            
+            
+            - wget https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-4.2.0.1873-linux.zip
+            - unzip ./sonar-scanner-cli-4.2.0.1873-linux.zip
+            - export PATH=$PATH:/sonar-scanner-4.2.0.1873-linux/bin/
+            - echo $PATH
+            - mv sonar-scanner-4.2.0.1873-linux sonar-scanner
+            - whereis sonar-scanner
+            - java -version
+            
+            
+            
+            
+            
+            
+    pre_build:
+        commands: 
+            - echo "we are in the pre build phase"
+            - ls ./
+            
+            
+            - cd /tmp
+            
+            - wget -q https://sonarcloud.io/static/cpp/build-wrapper-linux-x86.zip
+            - unzip -q build-wrapper-linux-x86.zip
+            - PATH=$PATH:/tmp/build-wrapper-linux-x86  
+            
+            - cd $repo
+            
+            
+    build:
+        commands:
+            - echo "we are in the build block"
+            - java -version
+            - ./sonar-scanner/bin/sonar-scanner -Dsonar.organization=$SONARCLOUD_ORG -Dsonar.projectKey=$PROJECTKEY -Dsonar.sources=.  -Dsonar.host.url=https://sonarcloud.io -Dsonar.login=$SONARCLOUD_TOKEN -X
+            - sleep 5
+            - curl https://sonarcloud.io/api/qualitygates/project_status?projectKey=$PROJECTKEY > analysis.json
+            - cat analysis.json 
+    post_build:
+        commands:
+            - echo "we are in the post build phase"

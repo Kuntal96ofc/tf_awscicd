@@ -1,0 +1,74 @@
+version: 0.2
+
+phases: 
+    install:
+
+        commands:
+        
+            - repo=$(pwd)
+            
+            
+            - export PATH=/usr/bin:$PATH
+            
+            
+            
+            - echo "installing something"
+            - cat /etc/os-release
+            - apt-get update
+            - apt-get -y install sudo
+            - sudo apt-get update
+            - sudo apt-get install -y jq
+            
+            
+            - wget https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-4.2.0.1873-linux.zip
+            - unzip ./sonar-scanner-cli-4.2.0.1873-linux.zip
+            - export PATH=$PATH:/sonar-scanner-4.2.0.1873-linux/bin/
+            - echo $PATH
+            - mv sonar-scanner-4.2.0.1873-linux sonar-scanner
+            - whereis sonar-scanner
+            - java -version
+            
+            
+            
+            
+            
+            
+    pre_build:
+        commands: 
+            - echo "we are in the pre build phase"
+            - ls ./
+            
+            - sudo apt-get install build-essential libssl-dev
+            
+            - cd /tmp
+            - wget https://github.com/Kitware/CMake/releases/download/v3.10.2/cmake-3.10.2.tar.gz
+            - tar -zxvf cmake-3.10.2.tar.gz
+            - cd cmake-3.10.2
+            - ./bootstrap
+            - sudo make install
+            - sudo apt-get install libconfig-dev -y
+            - sudo apt install libconfig++-dev -y
+            
+            - cd /tmp  
+            - wget -q https://sonarcloud.io/static/cpp/build-wrapper-linux-x86.zip
+            - unzip -q build-wrapper-linux-x86.zip
+            - PATH=$PATH:/tmp/build-wrapper-linux-x86  
+            
+            - cd $repo
+            - build/scripts/build_smf --install-deps --force 
+            - build-wrapper-linux-x86-64 --out-dir bw-output build/scripts/build_smf --clean --Verbose --build-type Release --jobs
+            - cat ./bw-output/build-wrapper-dump.json
+            - sleep 20
+            
+            
+    build:
+        commands:
+            - echo "we are in the build block"
+            - java -version
+            - ./sonar-scanner/bin/sonar-scanner -Dsonar.organization=$SONARCLOUD_ORG -Dsonar.projectKey=$PROJECTKEY -Dsonar.sources=. -Dsonar.cfamily.build-wrapper-output=bw-output -Dsonar.host.url=https://sonarcloud.io -Dsonar.login=$SONARCLOUD_TOKEN -X
+            - sleep 5
+            - curl https://sonarcloud.io/api/qualitygates/project_status?projectKey=$PROJECTKEY > analysis.json
+            - cat analysis.json 
+    post_build:
+        commands:
+            - echo "we are in the post build phase"

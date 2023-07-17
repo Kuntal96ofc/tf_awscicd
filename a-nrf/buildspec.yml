@@ -1,0 +1,43 @@
+version: 0.2
+run-as: root
+
+phases:
+
+  install:
+    commands:
+      - echo Installing app dependencies...
+      - curl -o kubectl https://amazon-eks.s3.us-west-2.amazonaws.com/1.18.9/2020-11-02/bin/linux/amd64/kubectl   
+      - chmod +x ./kubectl
+      - mkdir -p $HOME/bin && cp ./kubectl $HOME/bin/kubectl && export PATH=$PATH:$HOME/bin
+      - echo 'export PATH=$PATH:$HOME/bin' >> ~/.bashrc
+      - echo 'Check kubectl version'
+      - kubectl version --short --client
+      - chmod +x prereqs.sh
+      - sh prereqs.sh
+
+  pre_build:
+    commands:
+      - echo Logging in to Amazon EKS...
+      - aws eks --region <AWSRegion> update-kubeconfig --name getting-started-eks
+      - echo check kubectl access
+      - kubectl get svc
+      - echo Logging in to Amazon ECR...
+      - aws ecr get-login-password --region <AWSRegion> | docker login --username AWS --password-stdin <AWSAccountNumber>.dkr.ecr.<AWSRegion>.amazonaws.com
+      
+      
+
+  build:
+    commands:
+      - echo Build started on `date`
+      - echo Building the Docker image...          
+      - docker build -t goai-nrf .
+      - docker tag goai-nrf:latest <AWSAccountNumber>.dkr.ecr.<AWSRegion>.amazonaws.com/goai-nrf:latest
+
+  post_build:
+    commands:
+      - echo Build completed on `date`
+      - echo Pushing the Docker image...
+      - docker push <AWSAccountNumber>.dkr.ecr.<AWSRegion>.amazonaws.com/goai-nrf:latest
+      - echo Push the latest image to cluster
+      - kubectl apply -f oai-nrf-deployment.yaml 
+      - kubectl apply -f oai-nrf-service.yaml
